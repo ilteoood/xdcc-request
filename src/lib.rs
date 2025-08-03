@@ -14,16 +14,19 @@ use names::Generator;
 /// Internal engine state, shared across requests.
 struct InnerEngine {
     /// Name generator for IRC nicknames.
-    names: Mutex<Generator<'static>>,
+    nicknames: Mutex<Generator<'static>>,
     /// Timeout duration for IRC responses.
     timeout: Duration,
+    /// Username generator for IRC usernames.
+    usernames: Mutex<Generator<'static>>,
 }
 
 impl Default for InnerEngine {
     fn default() -> Self {
         Self {
-            names: Default::default(),
+            nicknames: Default::default(),
             timeout: Duration::from_secs(30),
+            usernames: Default::default(),
         }
     }
 }
@@ -38,8 +41,17 @@ impl std::fmt::Debug for InnerEngine {
 
 impl InnerEngine {
     /// Generate the next unique IRC nickname.
-    fn next_name(&self) -> Option<String> {
-        if let Ok(mut lock) = self.names.lock() {
+    fn next_nickname(&self) -> Option<String> {
+        if let Ok(mut lock) = self.nicknames.lock() {
+            lock.next()
+        } else {
+            None
+        }
+    }
+
+    /// Generate the next unique IRC username.
+    fn next_username(&self) -> Option<String> {
+        if let Ok(mut lock) = self.usernames.lock() {
             lock.next()
         } else {
             None
@@ -146,7 +158,8 @@ impl Request {
     /// Returns a [`Result`] with IRC or timeout errors.
     pub async fn execute(&self) -> Result<Response> {
         let config = Config {
-            nickname: self.inner.next_name(),
+            nickname: self.inner.next_nickname(),
+            username: self.inner.next_username(),
             server: Some(self.info.server.clone()),
             channels: vec![self.info.channel.clone()],
             ..Default::default()
