@@ -18,7 +18,7 @@ struct InnerEngine {
     /// Timeout duration for IRC responses.
     timeout: Duration,
     /// Username generator for IRC usernames.
-    usernames: Mutex<Generator<'static>>,
+    usernames: Option<Mutex<Generator<'static>>>,
 }
 
 impl Default for InnerEngine {
@@ -51,11 +51,12 @@ impl InnerEngine {
 
     /// Generate the next unique IRC username.
     fn next_username(&self) -> Option<String> {
-        if let Ok(mut lock) = self.usernames.lock() {
-            lock.next()
-        } else {
-            None
+        if let Some(usernames) = &self.usernames {
+            if let Ok(mut lock) = usernames.lock() {
+                return lock.next();
+            }
         }
+        None
     }
 }
 
